@@ -39,7 +39,7 @@ class User:
             # create_new_user(curseur, user_pseudo)
         else:
             print("Ton pseudo est dans la base.")
-            # print("Quel est ton mot de passe ?")
+            print("Quel est ton mot de passe ?")
 
 
 def identification_user(connexion):
