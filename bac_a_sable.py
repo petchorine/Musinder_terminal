@@ -18,82 +18,53 @@ def users_database_creation():
 
 class User:
 
+    connexion = sqlite3.connect(r"c:\Users\chris\Desktop\monPyhon\mes_projets_python\musinder\V0\users.db")
+    curseur = connexion.cursor()
     id_iter = itertools.count()
-    def __init__(self, pseudo, mdp):
+
+    def __init__(self, pseudo):
         self.pseudo = pseudo
-        self.mdp = mdp
+        self.mdp = ""
         self.id = next(self.id_iter)
 
-    def identif(self):
-        connexion = sqlite3.connect("users.db")
-        curseur = connexion.cursor()
+    def user_identification(self):
 
         # Vérification de la présence du pseudo dans la bdd
-        curseur.execute(f'SELECT * FROM users')
-        # curseur.execute(f'SELECT * FROM users WHERE pseudo="{self.pseudo}"')
-        user_found = curseur.fetchall()
-        print(user_found)
-        
+        self.curseur.execute(f'SELECT * FROM users WHERE pseudo="{self.pseudo}"')
+        user_found = self.curseur.fetchall()                
         if user_found == []:
             print("Ton pseudo n'est pas dans la base.")
-            # create_new_user(curseur, user_pseudo)
+            self.create_new_user()
         else:
-            print("Ton pseudo est dans la base.")
-            print("Quel est ton mot de passe ?")
+            print("Entre ton mot de passe :")
+            self.mdp = input(">>> ")
+            self.curseur.execute(f'SELECT * FROM users WHERE pseudo="{self.pseudo}"')
+            verify_mdp = self.curseur.fetchall()
+            if self.mdp == verify_mdp[0][2]:
+                print("pseudo + mdp = ok")
+            else:
+                print("Le mot de passe ne correspond pas au pseudo")
+        
+        self.connexion.commit()
+        self.connexion.close()
 
-
-def identification_user(connexion):
-    curseur = connexion.cursor()
-    print("Entre ton pseudo :")
-    user_pseudo = input(">>> ")
-
-    # Vérification de la présence du pseudo dans la bdd
-    curseur.execute(f'SELECT * FROM users WHERE pseudo="{user_pseudo}"')
-    user_found = curseur.fetchall()
-
-    if user_found == []:
-        print("Ton pseudo n'est pas dans la base.")
-        create_new_user(curseur, user_pseudo)
-    else:
-        print("Ton pseudo est dans la base.")
-        print("Quel est ton mot de passe ?")
-        user_mdp = input(">>> ")
-        curseur.execute(f'SELECT * FROM users WHERE pseudo="{user_pseudo}"')
-        mdp_ok = curseur.fetchall()
-        if user_mdp == mdp_ok[0][2]:
-            print("pseudo + mdp = ok")
-        else:
-            print("Le mot de passe ne correspond pas au pseudo")
-
-def create_new_user(curseur, user_pseudo):
-        print(f"Je crée un nouvel utilisateur dans ma base avec le pseudo : {user_pseudo}")
-        curseur.execute(f"""INSERT INTO users (pseudo) VALUES ("{user_pseudo}");""")
+    def create_new_user(self):
+        print(f"Je crée un nouvel utilisateur dans ma base avec le pseudo : {self.pseudo}")
+        self.curseur.execute(f"""INSERT INTO users (pseudo) VALUES ("{self.pseudo}");""")
         print("Entre ton mot de passe :")
         user_mdp = input(">>> ")
-        curseur.execute(f"""UPDATE users SET mdp = ("{user_mdp}") WHERE pseudo = "{user_pseudo}";""")
+        self.curseur.execute(f"""UPDATE users SET mdp = ("{user_mdp}") WHERE pseudo = "{self.pseudo}";""")
         print("Ton compte a bien été créé.")
 
 
-
-def test():
-    pseudo = "toto"
-    mdp = "123"
-    user = User(pseudo, mdp)
-
-    user.identif()
+def get_user_identification():
+    print("Entre ton pseudo :")
+    pseudo = input(">>> ")
+    user = User(pseudo)
+    user.user_identification()
 
 users_database_creation()
-test()
-
-
-# connexion = sqlite3.connect("users.db")
-
-
-# identification_user(connexion)
-
-# connexion.commit()
-# connexion.close()
-
+get_user_identification()
 
 
 
