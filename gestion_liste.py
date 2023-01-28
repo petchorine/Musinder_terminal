@@ -1,6 +1,7 @@
 import copy
 
-all_dico = {"21": "a", "22": "b", "23": "c", "24": "d", "25": "e", "26": "f"}
+all_dico = [{'numero': '1', 'artiste': 'Frank Sinatra', 'titre': 'In the Wee Small Hours', 'annee': '1955'}, {'numero': '2', 'artiste': 'Elvis Presley', 'titre': 'Elvis Presley (album)', 'annee': '1956'}, {'numero': '3', 'artiste': 'The Louvin Brothers', 'titre': 'Tragic Songs of Life', 'annee': '1956'}, {'numero': '4', 'artiste': 'Louis Prima', 'titre': 'The Wildest!', 'annee': '1956'}, {'numero': '5', 'artiste': 'Fats Domino', 'titre': 'This is Fats', 'annee': '1956'}]
+
 
 remaining_list = copy.copy(all_dico)
 liked = []
@@ -16,9 +17,13 @@ def add_to_liked_or_unliked():
     print(" 2. non")
     user_choice = input(">>> ")
 
-    if user_choice == "1":
-        liked.append()
-        # del remaining_list
+    if user_choice == "1":       
+        for album in remaining_list:
+            if album["numero"] == album_choice:
+                liked.append(album_choice)
+                remaining_list.remove(album)
+                break
+
     elif user_choice == "2":
         unliked.append()
         # del remaining_list
@@ -46,10 +51,10 @@ def intro():
     if user_choice == "1":
         print()
         print("Titre")
-        for k, v in remaining_list.items():
-            print(f"{k}. {v}")
-        print()
-        add_to_liked_or_unliked()
+        
+        # TODO : afficher le dictionnaire
+
+        # add_to_liked_or_unliked()
     else:
         print("menu")
 
