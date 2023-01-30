@@ -12,11 +12,6 @@ class Titre:
         self.titre = titre
         self.annee = annee
 
-        self.titre_album["numero"] = self.numero
-        self.titre_album["artiste"] = self.artiste
-        self.titre_album["titre"] = self.titre
-        self.titre_album["annee"] = self.annee
-
 class PlayList:
 
     def __init__(self, playlist):
@@ -31,7 +26,6 @@ n°   Artiste                        Album                          Annee
             print(album.numero.ljust(4), album.artiste[:30].ljust(30, "."), 
                     album.titre[:27].ljust(30, "."), album.annee.rjust(4))
         print()
-
 
 class User:
 
@@ -88,7 +82,6 @@ def get_all_albums(URL_WIKI):
 
     return all_albums, nbr_total_album
 
-
 def introduction():
     nbr_albums = get_all_albums(URL_WIKI)[1]
     print("""
@@ -120,10 +113,10 @@ for album in albums[0][0]:
     
 
 print(all_albums_dico)
+# introduction()
 
-
-
-# all_albums_by_decade = PlayList(all_albums_by_decade)        
+# titre1 = all_albums_dico[0]["titre"]
+# print(titre1)
 
 
 
