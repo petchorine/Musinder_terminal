@@ -107,7 +107,7 @@ albums = get_all_albums(URL_WIKI)
 
 all_albums_dico = []
 
-for album in albums[0][0]:
+for album in albums[0][1]:
     album_dico = {"numero": album.numero, "artiste": album.artiste ,"titre": album.titre, "annee": album.annee}
     all_albums_dico.append(album_dico)
     

@@ -13,9 +13,9 @@ def albums_database():
         with sqlite3.connect(PATH_DB) as connexion:
             curseur = connexion.cursor()
             curseur.execute("""CREATE TABLE albums (
-                numero INTEGER NOT NULL PRIMARY KEY,
+                numero INTEGER,
                 artiste VARCHAR,
-                album VARCHAR,
+                titre VARCHAR,
                 annee INTEGER
                 );""")      
 albums_database()
@@ -30,11 +30,13 @@ class Titre:
         self.titre = titre
         self.annee = int(annee)
 
-    # def add_all_albums_in_db(self):
         with sqlite3.connect(PATH_DB) as connexion:
             curseur = connexion.cursor()
-            curseur.execute(f"""INSERT INTO albums (artiste) VALUES ("{self.artiste}")
-            """)
+            curseur.execute(f"""INSERT INTO albums (numero) VALUES ('{self.numero}');""")
+            curseur.execute("UPDATE albums SET artiste = (?) WHERE numero = (?)", (self.artiste, self.numero))
+            curseur.execute("UPDATE albums SET titre = (?) WHERE numero = (?)", (self.titre, self.numero))
+            curseur.execute(f"""UPDATE albums SET annee = ('{self.annee}') WHERE numero = "{self.numero}";""")
+
 
 def get_all_albums(URL_WIKI):
     page = requests.get(URL_WIKI)
@@ -65,7 +67,7 @@ def get_all_albums(URL_WIKI):
         
             for album_line in list_decade:
                 numero, artiste, titre, annee = album_line
-                all_albums_by_decade.append(Titre(numero, artiste, titre, annee))
+                all_albums_by_decade.append((numero, artiste, titre, annee))
 
         all_albums.append(all_albums_by_decade)
 
@@ -76,10 +78,22 @@ def get_all_albums(URL_WIKI):
     return all_albums, nbr_total_album
 
 
-# albums = get_all_albums(URL_WIKI)
-get_all_albums(URL_WIKI)
+albums = get_all_albums(URL_WIKI)
 
-all_albums_dico = []
+# affiche le nombre de decade => 8 
+print(len(albums[0]))
+
+# affiche le nombre d'albums dans la 1ère decade => 23
+print(len(albums[0][0]))
+
+print(albums[0][0][0])
+
+for i in range(len(albums[0])):
+    for j in range(len(albums[0][i])):
+        Titre(albums[0][i][j][0], albums[0][i][j][1],albums[0][i][j][2], albums[0][i][j][3])
+
+
+# all_albums_dico = []
 
 # for album in albums[0][0]:
 #     album_dico = {"numero": album.numero, "artiste": album.artiste ,"titre": album.titre, "annee": album.annee}
