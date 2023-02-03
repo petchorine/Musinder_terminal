@@ -1,16 +1,46 @@
+import sqlite3
 import requests
 from bs4 import BeautifulSoup
-import copy
 
 URL_WIKI = r"https://fr.wikipedia.org/wiki/Les_1001_albums_qu%27il_faut_avoir_%C3%A9cout%C3%A9s_dans_sa_vie"
 
-class Titre:
-    titre_album = {}
-    def __init__(self, numero, artiste, titre, annee):
-        self.numero = numero
-        self.artiste = artiste
-        self.titre = titre
-        self.annee = annee
+def get_albums_content(URL_WIKI):
+    page = requests.get(URL_WIKI)
+    soup = BeautifulSoup(page.content, 'html.parser')
+    tab_by_decade = soup.select("h3 + table")
+    return tab_by_decade
+
+def process_album_content(tab_by_decade):
+    all_albums = []
+    for idx1 in range(1, 9):
+        for idx2 in range(idx1):        
+            list_wthout_sort = []
+            all_albums_by_decade = []
+            lines_td = tab_by_decade[idx2].select("td")
+
+            for line in lines_td:
+                if line.a is None:
+                    line = line.string.strip()
+                else:
+                    line = line.a.get("title")
+                list_wthout_sort.append(line)
+
+            lol = lambda lst, sz: [lst[i:i+sz] for i in range(0, len(lst), sz)]
+            list_decade = lol(list_wthout_sort, 4)
+        
+            for album_line in list_decade:
+                index_id, artist, title, year = album_line
+                new_entry = {"index_id": index_id, "artist": artist, "title": title, "year": year}
+                all_albums_by_decade.append(new_entry)
+
+        all_albums.append(all_albums_by_decade)
+    return all_albums
+
+def get_albums(URL_WIKI):
+    tab_by_decade = get_albums_content(URL_WIKI)
+    all_albums = process_album_content(tab_by_decade)
+    nbr_total_album = sum([len(decade) for decade in all_albums])
+    return all_albums, nbr_total_album
 
 class PlayList:
 
@@ -27,63 +57,82 @@ n°   Artiste                        Album                          Annee
                     album.titre[:27].ljust(30, "."), album.annee.rjust(4))
         print()
 
+class Album:
+    def __init__(self, album_id, artist, title, year):
+        self.album_id = album_id
+        self.artist = artist
+        self.title = title
+        self.year = year
+
 class User:
+    def __init__(self, username, liste_albums):
+        self.username = username
+        self.remaining_list = []
+        self.liked_list = []
+        self.unliked_list = []
 
-    def __init__(self, pseudo, id, all_albums_by_decade, remaining_playlist, liked_playlist, unliked_playlist):
-        self.pseudo = pseudo
-        self.id = id
-        self.all_albums_by_decade = all_albums_by_decade
-        self.remaining_playlist = remaining_playlist
-        self.liked_playlist = liked_playlist
-        self.unliked_playlist = unliked_playlist
-    
-    def add_to_liked_list(self, all_albums):
-        print("Voici la liste des albums:")
-        self.remaining_playlist = copy.copy(all_albums)
-        self.all_albums_by_decade.show_playlist()
+        self.conn = sqlite3.connect(fr'C:\Users\chris\Desktop\monPyhon\mes_projets_python\musinder\V1\{username}_albums.db')
+        self.cursor = self.conn.cursor()
 
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS remaining_list (album_id text, artist text, title text, year text)''')
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS liked_list (album_id text, artist text, title text, year text)''')
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS unliked_list (album_id text, artist text, title text, year text)''')
 
-def get_all_albums(URL_WIKI):
-    page = requests.get(URL_WIKI)
-    soup = BeautifulSoup(page.content, 'html.parser')
+        for album in liste_albums:
+            self.add_album(album["index_id"], album["artist"], album["title"], album["year"])
+        self.conn.commit()
 
-    titres_annees = soup.find_all("span", class_="mw-headline")
-    all_albums = []
-    nbr_total_album = 0
+    def add_album(self, album_id, artist, title, year):
+        album = Album(album_id, artist, title, year)
+        self.remaining_list.append(album)
+        self.cursor.execute('''INSERT INTO remaining_list VALUES (?,?,?,?)''', (album_id, artist, title, year))
+        self.conn.commit()
 
-    for idx1 in range(1, 9):
-        for idx2 in range(idx1):        # range de 1 (annees 1950) à 8 (annees 2020)
-            list_wthout_sort = []
-            all_albums_by_decade = []
-            
+    def liked_album(self, album_id):
+        flag = False
+        for album in self.remaining_list:
+            if album.album_id == album_id:
+                self.liked_list.append(album)
+                self.remaining_list.remove(album)
+                flag = True
 
-            tab_by_decade = soup.select("h3 + table")[idx2]
-            lines_td = tab_by_decade.select("td")
-
-            for line in lines_td:
-                if line.a is None:
-                    line = line.string.strip()
+            if flag:
+                self.cursor.execute(f"SELECT * FROM liked_list WHERE album_id='{album_id}'")
+                if not self.cursor.fetchone():
+                    self.cursor.execute('''INSERT INTO liked_list VALUES (?,?,?,?)''', (album_id, album.artist, album.title, album.year))
+                    self.cursor.execute('''DELETE FROM remaining_list WHERE album_id=?''', (album_id,))
+                    self.conn.commit()
+                    print(f"L'album a été ajouté à liked_list")
                 else:
-                    line = line.a.get("title")
-                list_wthout_sort.append(line)
+                    print(f"L'album existe déjà dans liked_list")
+            else:
+                print("L'album n'a pas été trouvé dans la remaining_list")
+                
+    def unliked_album(self, album_id):
+        flag = False
+        for album in self.remaining_list:
+            if album.album_id == album_id:
+                self.unliked_list.append(album)
+                self.remaining_list.remove(album)
+                flag = True
 
-            lol = lambda lst, sz: [lst[i:i+sz] for i in range(0, len(lst), sz)]
-            list_decade = lol(list_wthout_sort, 4)
-        
-            for album_line in list_decade:
-                numero, artiste, titre, annee = album_line
-                all_albums_by_decade.append(Titre(numero, artiste, titre, annee))
+            if flag:
+                self.cursor.execute(f"SELECT * FROM unliked_list WHERE album_id='{album_id}'")
+                if not self.cursor.fetchone():
+                    self.cursor.execute('''INSERT INTO unliked_list VALUES (?,?,?,?)''', (album_id, album.artist, album.title, album.year))
+                    self.cursor.execute('''DELETE FROM remaining_list WHERE album_id=?''', (album_id,))
+                    self.conn.commit()
+                    print(f"L'album a été ajouté à unliked_list")
+                else:
+                    print(f"L'album existe déjà dans unliked_list")
+            else:
+                print("L'album n'a pas été trouvé dans la remaining_list")
 
-        all_albums.append(all_albums_by_decade)
-
-    for decade in all_albums:
-        nbr_total_album += len(decade)
-    
-
-    return all_albums, nbr_total_album
+    def close(self):
+        self.conn.close
 
 def introduction():
-    nbr_albums = get_all_albums(URL_WIKI)[1]
+    nbr_albums = get_albums(URL_WIKI)[1]
     print("""
                 #########################################
                 #                                       #
@@ -102,21 +151,11 @@ Elle contient actuellement {nbr_albums} albums.
 """)
 
 
-
-albums = get_all_albums(URL_WIKI)
-
-all_albums_dico = []
-
-for album in albums[0][1]:
-    album_dico = {"numero": album.numero, "artiste": album.artiste ,"titre": album.titre, "annee": album.annee}
-    all_albums_dico.append(album_dico)
-    
-
-print(all_albums_dico)
-# introduction()
-
-# titre1 = all_albums_dico[0]["titre"]
-# print(titre1)
+# for i in range(len(get_albums(URL_WIKI)[0])):
+#     BASE = get_albums(URL_WIKI)[0][i]
+#     toto = User("toto", BASE)
 
 
+
+introduction()
 
