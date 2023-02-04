@@ -1,6 +1,7 @@
 import sqlite3
 import requests
 from bs4 import BeautifulSoup
+import os
 
 URL_WIKI = r"https://fr.wikipedia.org/wiki/Les_1001_albums_qu%27il_faut_avoir_%C3%A9cout%C3%A9s_dans_sa_vie"
 
@@ -42,6 +43,22 @@ def get_albums(URL_WIKI):
     nbr_total_album = sum([len(decade) for decade in all_albums])
     return all_albums, nbr_total_album
 
+class DatabaseManager:
+    def __init__(self, path_to_db):
+        self.path_to_db = path_to_db
+
+    def connect(self):
+        return sqlite3.connect(self.path_to_db)
+
+    def execute_query(self, query, values=None):
+        with self.connect() as connection:
+            cursor = connection.cursor()
+            if values:
+                cursor.execute(query, values)
+            else:
+                cursor.execute(query)
+            return cursor.fetchall()
+
 class Album:
     def __init__(self, album_id, artist, title, year):
         self.album_id = album_id
@@ -55,25 +72,31 @@ class User:
         self.remaining_list = []
         self.liked_list = []
         self.unliked_list = []
+        self.db_manager = DatabaseManager(fr'C:\Users\chris\Desktop\monPyhon\mes_projets_python\musinder\V0\{username}_albums.db')
 
-        self.conn = sqlite3.connect(fr'C:\Users\chris\Desktop\monPyhon\mes_projets_python\musinder\V0\{username}_albums.db')
-        self.cursor = self.conn.cursor()
-
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS remaining_list (album_id text, artist text, title text, year text)''')
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS liked_list (album_id text, artist text, title text, year text)''')
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS unliked_list (album_id text, artist text, title text, year text)''')
+        self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS remaining_list (album_id text, artist text, title text, year text)''')
+        self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS liked_list (album_id text, artist text, title text, year text)''')
+        self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS unliked_list (album_id text, artist text, title text, year text)''')
 
         for album in liste_albums:
             self.add_album(album["index_id"], album["artist"], album["title"], album["year"])
-        self.conn.commit()
+    
+        self.db_manager.connect().commit()
 
-    def add_album(self, album_id, artist, title, year):
+    def add_album(self, album_id, artist, title, year):        
         album = Album(album_id, artist, title, year)
         self.remaining_list.append(album)
-        self.cursor.execute('''INSERT INTO remaining_list VALUES (?,?,?,?)''', (album_id, artist, title, year))
-        self.conn.commit()
-
-
+        
+        query = "SELECT 1 FROM remaining_list WHERE album_id=? AND artist=? AND title=? AND year=?"
+        result = self.db_manager.execute_query(query, (album_id, artist, title, year))
+        if result:
+            pass
+        else:
+            insert_query = "INSERT INTO remaining_list VALUES (?,?,?,?)"
+            self.db_manager.execute_query(insert_query, (album_id, artist, title, year))
+            self.db_manager.connect().commit()
+        
+        
     def add_to_liked_or_unliked(self):
         while self.remaining_list:
             print()
@@ -117,15 +140,16 @@ class User:
 
         print("Tous les albums ont été taggés.") 
 
-    def show_remaining_list(self, choice):
+    # TODO - Problème : les index sont faux dès que j'ai enlevé des morceaux de la remaining_list
+    def show_remaining_list(self, choice):    
         list_index = [slice(0,23), slice(23,174), slice(174,453), slice(453,663), slice(663,902), slice(902,1037), slice(1037,1079), slice(1079,1087)]
         print()
         print("""
 n°   Artiste                        Album                          Annee
 ==== ============================== ============================== =====
 """)
-        self.cursor.execute('''SELECT * FROM remaining_list''')
-        rows = self.cursor.fetchall()
+                
+        rows = self.db_manager.execute_query('''SELECT * FROM remaining_list''')
         for row in rows[list_index[choice - 1]]:
             print(row[0].ljust(4), row[1][:30].ljust(30, "."), 
                     row[2][:27].ljust(30, "."), row[3].rjust(4))
