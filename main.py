@@ -13,6 +13,7 @@ def get_albums_content(URL_WIKI):
 
 def process_album_content(tab_by_decade):
     all_albums = []
+    decade = 1950
     for idx1 in range(1, 9):
         for idx2 in range(idx1):        
             list_wthout_sort = []
@@ -31,10 +32,10 @@ def process_album_content(tab_by_decade):
         
             for album_line in list_decade:
                 index_id, artist, title, year = album_line
-                new_entry = {"index_id": index_id, "artist": artist, "title": title, "year": year}
+                new_entry = {"index_id": index_id, "artist": artist, "title": title, "year": year, "decade": decade}
                 all_albums_by_decade.append(new_entry)
-
         all_albums.append(all_albums_by_decade)
+        decade += 10   
     return all_albums
 
 def get_albums(URL_WIKI):
@@ -60,11 +61,12 @@ class DatabaseManager:
             return cursor.fetchall()
 
 class Album:
-    def __init__(self, album_id, artist, title, year):
+    def __init__(self, album_id, artist, title, year, decade):
         self.album_id = album_id
         self.artist = artist
         self.title = title
         self.year = year
+        self.decade = decade
 
 class User:
     def __init__(self, username, liste_albums):
@@ -74,29 +76,28 @@ class User:
         self.unliked_list = []
         self.db_manager = DatabaseManager(fr'C:\Users\chris\Desktop\monPyhon\mes_projets_python\musinder\V0\{username}_albums.db')
 
-        self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS remaining_list (album_id text, artist text, title text, year text)''')
-        self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS liked_list (album_id text, artist text, title text, year text)''')
-        self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS unliked_list (album_id text, artist text, title text, year text)''')
+        self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS remaining_list (album_id text, artist text, title text, year text, decade integer)''')
+        self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS liked_list (album_id text, artist text, title text, year text, decade integer)''')
+        self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS unliked_list (album_id text, artist text, title text, year text, decade integer)''')
 
         for album in liste_albums:
-            self.add_album(album["index_id"], album["artist"], album["title"], album["year"])
+            self.add_album(album["index_id"], album["artist"], album["title"], album["year"], album["decade"])
     
         self.db_manager.connect().commit()
 
-    def add_album(self, album_id, artist, title, year):        
-        album = Album(album_id, artist, title, year)
+    def add_album(self, album_id, artist, title, year, decade):        
+        album = Album(album_id, artist, title, year, decade)
         self.remaining_list.append(album)
         
-        query = "SELECT 1 FROM remaining_list WHERE album_id=? AND artist=? AND title=? AND year=?"
-        result = self.db_manager.execute_query(query, (album_id, artist, title, year))
+        query = "SELECT 1 FROM remaining_list WHERE album_id=? AND artist=? AND title=? AND year=? AND decade=?"
+        result = self.db_manager.execute_query(query, (album_id, artist, title, year, decade))
         if result:
             pass
         else:
-            insert_query = "INSERT INTO remaining_list VALUES (?,?,?,?)"
-            self.db_manager.execute_query(insert_query, (album_id, artist, title, year))
+            insert_query = "INSERT INTO remaining_list VALUES (?,?,?,?,?)"
+            self.db_manager.execute_query(insert_query, (album_id, artist, title, year, decade))
             self.db_manager.connect().commit()
-        
-        
+                
     def add_to_liked_or_unliked(self):
         while self.remaining_list:
             print()
@@ -140,17 +141,16 @@ class User:
 
         print("Tous les albums ont été taggés.") 
 
-    # TODO - Problème : les index sont faux dès que j'ai enlevé des morceaux de la remaining_list
-    def show_remaining_list(self, choice):    
-        list_index = [slice(0,23), slice(23,174), slice(174,453), slice(453,663), slice(663,902), slice(902,1037), slice(1037,1079), slice(1079,1087)]
+    def show_remaining_list(self, choice):
+        choices = [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]    
         print()
         print("""
 n°   Artiste                        Album                          Annee
 ==== ============================== ============================== =====
 """)
                 
-        rows = self.db_manager.execute_query('''SELECT * FROM remaining_list''')
-        for row in rows[list_index[choice - 1]]:
+        rows = self.db_manager.execute_query(f'''SELECT * FROM remaining_list WHERE decade = {choices[choice - 1]}''')
+        for row in rows:
             print(row[0].ljust(4), row[1][:30].ljust(30, "."), 
                     row[2][:27].ljust(30, "."), row[3].rjust(4))
 
@@ -163,12 +163,18 @@ n°   Artiste                        Album                          Annee
                 flag = True
 
             if flag:
-                self.cursor.execute(f"SELECT * FROM liked_list WHERE album_id='{album_id}'")
-                if not self.cursor.fetchone():
-                    self.cursor.execute('''INSERT INTO liked_list VALUES (?,?,?,?)''', (album_id, album.artist, album.title, album.year))
-                    self.cursor.execute('''DELETE FROM remaining_list WHERE album_id=?''', (album_id,))
-                    self.conn.commit()
+                self.db_manager.execute_query(f"SELECT * FROM liked_list WHERE album_id='{album_id}'")
+                
+                # TODO
+                with sqlite3.connect(fr'C:\Users\chris\Desktop\monPyhon\mes_projets_python\musinder\V0\{self.username}_albums.db') as connection:
+                    cursor = connection.cursor()
+
+                if not cursor.fetchone():
+                    self.db_manager.execute_query('''INSERT INTO liked_list VALUES (?,?,?,?,?)''', (album_id, album.artist, album.title, album.year, album.decade))
+                    self.db_manager.execute_query('''DELETE FROM remaining_list WHERE album_id=?''', (album_id,))
+                    self.db_manager.connect().commit()
                     print(f"L'album a été ajouté à liked_list")
+                    break
                 else:
                     print(f"L'album existe déjà dans liked_list")
             else:
@@ -183,11 +189,13 @@ n°   Artiste                        Album                          Annee
                 flag = True
 
             if flag:
-                self.cursor.execute(f"SELECT * FROM unliked_list WHERE album_id='{album_id}'")
+                self.db_manager.execute_query(f"SELECT * FROM unliked_list WHERE album_id='{album_id}'")
+                
+                # TODO
                 if not self.cursor.fetchone():
-                    self.cursor.execute('''INSERT INTO unliked_list VALUES (?,?,?,?)''', (album_id, album.artist, album.title, album.year))
-                    self.cursor.execute('''DELETE FROM remaining_list WHERE album_id=?''', (album_id,))
-                    self.conn.commit()
+                    self.db_manager.execute_query('''INSERT INTO unliked_list VALUES (?,?,?,?,?)''', (album_id, album.artist, album.title, album.year, album.decade))
+                    self.db_manager.execute_query('''DELETE FROM remaining_list WHERE album_id=?''', (album_id,))
+                    self.db_manager.connect().commit()
                     print(f"L'album a été ajouté à unliked_list")
                 else:
                     print(f"L'album existe déjà dans unliked_list")
@@ -234,15 +242,15 @@ for i in range(len(get_albums(URL_WIKI)[0])):
 
 introduction()
 
+# permet d'afficher les albums par décenie
+# while True:
+#     choice_decade = input(">>> ")
+#     if choice_decade == "q":
+#         break
+#     else:
+#         choice_decade_int = int(choice_decade)
+#         toto.show_remaining_list(choice_decade_int)
 
-while True:
-    choice_decade = input(">>> ")
-    if choice_decade == "q":
-        break
-    else:
-        choice_decade_int = int(choice_decade)
-        toto.show_remaining_list(choice_decade_int)
 
-
-# toto.add_to_liked_or_unliked()
-
+# ajoute l'album à liked_list
+toto.liked_album("1083")
