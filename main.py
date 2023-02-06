@@ -165,7 +165,6 @@ n°   Artiste                        Album                          Annee
             if flag:
                 self.db_manager.execute_query(f"SELECT * FROM liked_list WHERE album_id='{album_id}'")
                 
-                # TODO
                 with sqlite3.connect(fr'C:\Users\chris\Desktop\monPyhon\mes_projets_python\musinder\V0\{self.username}_albums.db') as connection:
                     cursor = connection.cursor()
 
@@ -191,8 +190,10 @@ n°   Artiste                        Album                          Annee
             if flag:
                 self.db_manager.execute_query(f"SELECT * FROM unliked_list WHERE album_id='{album_id}'")
                 
-                # TODO
-                if not self.cursor.fetchone():
+                with sqlite3.connect(fr'C:\Users\chris\Desktop\monPyhon\mes_projets_python\musinder\V0\{self.username}_albums.db') as connection:
+                    cursor = connection.cursor()
+
+                if not cursor.fetchone():
                     self.db_manager.execute_query('''INSERT INTO unliked_list VALUES (?,?,?,?,?)''', (album_id, album.artist, album.title, album.year, album.decade))
                     self.db_manager.execute_query('''DELETE FROM remaining_list WHERE album_id=?''', (album_id,))
                     self.db_manager.connect().commit()
