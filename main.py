@@ -89,6 +89,48 @@ class User:
             self.db_manager.execute_query(insert_query, (album_id, artist, title, year, decade))
             self.db_manager.connect().commit()
 
+    def decade_choice(self):
+        choices = [(1, 1950), (2, 1960), (3, 1970), (4, 1980), (5, 1990), (6, 2000), (7, 2010), (8, 2020)]
+        print()
+        print("Les albums de quelle décennie souhaites-tu voir ? ('q' pour quitter)" )
+        print(" 1. 1950")
+        print(" 2. 1960")
+        print(" 3. 1970")
+        print(" 4. 1980")
+        print(" 5. 1990")
+        print(" 6. 2000")
+        print(" 7. 2010")
+        print(" 8. 2020")
+        while True:
+            choice_decade = input(">>> ")      
+            try:
+                choice_decade_int = int(choice_decade)
+                if choice_decade_int in [1, 2, 3, 4, 5, 6, 7, 8]:
+                    if self.db_manager.execute_query(f'''SELECT * FROM remaining_list WHERE decade = {choices[choice_decade_int - 1][1]}'''):
+                        self.show_remaining_list(choices[choice_decade_int - 1][1])
+                        return choices[choice_decade_int - 1][1]
+                    else:
+                        print(f"Tous les albums ont été taggés pour les années {choices[choice_decade_int - 1][1]}.") 
+                        print()
+                        continue
+                elif choice_decade_int in [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]:
+                    if self.db_manager.execute_query(f'''SELECT * FROM remaining_list WHERE decade = {choice_decade_int}'''):
+                        self.show_remaining_list(choice_decade_int)
+                        return choice_decade_int
+                    else:
+                        print(f"Tous les albums ont été taggés pour les années {choice_decade_int}.") 
+                        print()
+                        continue
+                else:
+                    print("Tu dois choisir une des options proposées.")
+                    continue
+            except:
+                if choice_decade == "q":
+                    quit()
+                else:
+                    print("Tu dois choisir une des options proposées.")
+                    continue
+
     def show_remaining_list(self, choice):
         print()
         print(f"Voici les albums qu'il te reste à tagger pour les années {choice}.")
@@ -114,40 +156,43 @@ n°   Artiste                        Album                          Annee
                 print()
                 print("Tape le n° de l'album :")
                 album_choice = input(">>> ")
-                
+                if album_choice.isdecimal():
+                    album = self.db_manager.execute_query(f'''SELECT * FROM remaining_list WHERE album_id = {album_choice}''')
+                    if album:
+                        print()
+                        print(f"As-tu aimé l'album '{album[0][2]}' de {album[0][1]} ?")
+                        print(" 1. oui")
+                        print(" 2. non")
+                        user_choice = input(">>> ")
 
-                album = self.db_manager.execute_query(f'''SELECT * FROM remaining_list WHERE album_id = {album_choice}''')
-                if album:
-                    print()
-                    print(f"As-tu aimé l'album '{album[0][2]}' de {album[0][1]} ?")
-                    print(" 1. oui")
-                    print(" 2. non")
-                    user_choice = input(">>> ")
-
-                    if user_choice == "1":       
-                        self.liked_album(album[0][0])
-                        break
-                    elif user_choice == "2":
-                        self.unliked_album(user_choice)
-                        break
+                        if user_choice == "1":       
+                            self.liked_album(album[0][0])
+                            continue
+                        elif user_choice == "2":
+                            self.unliked_album(album[0][0])
+                            continue
+                        else:
+                            print("Tu dois choisir 1 ou 2.")
+                            self.add_to_liked_or_unliked()
                     else:
-                        print("Tu dois choisir 1 ou 2.")
-                        self.add_to_liked_or_unliked()
+                        print("Cet album n'est pas dans la liste.")
+                        continue
                 else:
-                    print("Cet album n'est pas dans la liste.")
-                    break
+                    print("Tu dois taper le n° de l'album.")
+                    continue
             elif user_choice == "2":
                 self.show_remaining_list(decade)
             elif user_choice == "3":
-                print("menu")
-                decade_choice()
-                continue
+                decade = self.decade_choice()
+                self.add_to_liked_or_unliked(decade)
             else:
                 print("Tu dois choisir entre 1, 2 ou 3.")
                 continue
 
         if not self.db_manager.execute_query(f'''SELECT * FROM remaining_list WHERE decade = {decade}'''):
-            print("Tous les albums ont été taggés.") 
+            print(f"Tous les albums ont été taggés pour les années {decade}.") 
+            decade = self.decade_choice()
+            self.add_to_liked_or_unliked(decade)
  
     def liked_album(self, album_id):
         album = self.db_manager.execute_query(f"SELECT * FROM remaining_list WHERE album_id='{album_id}'")
@@ -201,39 +246,8 @@ Cette liste a été publiée à partir de 2006 sous la direction de Robert Dimer
 Elle contient actuellement {nbr_albums} albums.
 """)
 
-def decade_choice():
-    choices = [(1, 1950), (2, 1960), (3, 1970), (4, 1980), (5, 1990), (6, 2000), (7, 2010), (8, 2020)]
-    print()
-    print("Les albums de quelle décennie souhaites-tu voir ? ('q' pour quitter)" )
-    print(" 1. 1950")
-    print(" 2. 1960")
-    print(" 3. 1970")
-    print(" 4. 1980")
-    print(" 5. 1990")
-    print(" 6. 2000")
-    print(" 7. 2010")
-    print(" 8. 2020")
-    while True:
-        choice_decade = input(">>> ")      
-        try:
-            choice_decade_int = int(choice_decade)
-            if choice_decade_int in [1, 2, 3, 4, 5, 6, 7, 8]:
-                toto.show_remaining_list(choices[choice_decade_int - 1][1])
-                return choices[choice_decade_int - 1][1]
-            elif choice_decade_int in [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]:
-                toto.show_remaining_list(choice_decade_int)
-                return choice_decade_int
-            else:
-                print("Tu dois choisir une des options proposées.")
-                continue
-        except:
-            if choice_decade == "q":
-                quit()
-            else:
-                print("Tu dois choisir une des options proposées.")
-                continue
 
 introduction()
-decade = decade_choice()
+decade = toto.decade_choice()
 toto.add_to_liked_or_unliked(decade)
 
