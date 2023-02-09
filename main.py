@@ -3,51 +3,11 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
-URL_WIKI = r"https://fr.wikipedia.org/wiki/Les_1001_albums_qu%27il_faut_avoir_%C3%A9cout%C3%A9s_dans_sa_vie"
-
-def get_albums_content(URL_WIKI):
-    page = requests.get(URL_WIKI)
-    soup = BeautifulSoup(page.content, 'html.parser')
-    tab_by_decade = soup.select("h3 + table")
-    return tab_by_decade
-
-def process_album_content(tab_by_decade):
-    all_albums = []
-    decade = 1950
-    for idx1 in range(1, 9):
-        for idx2 in range(idx1):        
-            list_wthout_sort = []
-            all_albums_by_decade = []
-            lines_td = tab_by_decade[idx2].select("td")
-
-            for line in lines_td:
-                if line.a is None:
-                    line = line.string.strip()
-                else:
-                    line = line.a.get("title")
-                list_wthout_sort.append(line)
-
-            lol = lambda lst, sz: [lst[i:i+sz] for i in range(0, len(lst), sz)]
-            list_decade = lol(list_wthout_sort, 4)
-        
-            for album_line in list_decade:
-                index_id, artist, title, year = album_line
-                new_entry = {"index_id": index_id, "artist": artist, "title": title, "year": year, "decade": decade}
-                all_albums_by_decade.append(new_entry)
-        all_albums.append(all_albums_by_decade)
-        decade += 10   
-    return all_albums
-
-def get_albums(URL_WIKI):
-    tab_by_decade = get_albums_content(URL_WIKI)
-    all_albums = process_album_content(tab_by_decade)
-    nbr_total_album = sum([len(decade) for decade in all_albums])
-    return all_albums, nbr_total_album
-
 class DatabaseManager:
     def __init__(self, path_to_db):
         self.path_to_db = path_to_db
-
+        self.url_wiki = r"https://fr.wikipedia.org/wiki/Les_1001_albums_qu%27il_faut_avoir_%C3%A9cout%C3%A9s_dans_sa_vie"
+                
     def connect(self):
         return sqlite3.connect(self.path_to_db)
 
@@ -60,34 +20,97 @@ class DatabaseManager:
                 cursor.execute(query)
             return cursor.fetchall()
 
+    def get_albums_content(self):
+        page = requests.get(self.url_wiki)
+        soup = BeautifulSoup(page.content, 'html.parser')
+        tab_by_decade = soup.select("h3 + table")
+        return tab_by_decade
+
+    def process_album_content(self, tab_by_decade):
+        all_albums = []
+        decade = 1950
+        for idx1 in range(1, 9):
+            for idx2 in range(idx1):        
+                list_wthout_sort = []
+                all_albums_by_decade = []
+                lines_td = tab_by_decade[idx2].select("td")
+
+                for line in lines_td:
+                    if line.a is None:
+                        line = line.string.strip()
+                    else:
+                        line = line.a.get("title")
+                    list_wthout_sort.append(line)
+
+                lol = lambda lst, sz: [lst[i:i+sz] for i in range(0, len(lst), sz)]
+                list_decade = lol(list_wthout_sort, 4)
+            
+                for album_line in list_decade:
+                    index_id, artist, title, year = album_line
+                    new_entry = {"index_id": index_id, "artist": artist, "title": title, "year": year, "decade": decade}
+                    all_albums_by_decade.append(new_entry)
+            all_albums.append(all_albums_by_decade)
+            decade += 10   
+        return all_albums
+
+    def get_albums(self):
+        tab_by_decade = self.get_albums_content()
+        all_albums = self.process_album_content(tab_by_decade)
+        nbr_total_album = sum([len(decade) for decade in all_albums])
+        return all_albums, nbr_total_album
+
+    def add_albums_to_db(self):
+        for i in range(len(self.get_albums()[0])):
+            BASE = self.get_albums()[0][i]
+            for album in BASE:
+                query1 = "SELECT 1 FROM remaining_list WHERE album_id=? AND artist=? AND title=? AND year=? AND decade=?"
+                result1 = self.execute_query(query1, (album["index_id"], album["artist"], album["title"], album["year"], album["decade"]))
+                query2 = "SELECT 1 FROM liked_list WHERE album_id=? AND artist=? AND title=? AND year=? AND decade=?"
+                result2 = self.execute_query(query2, (album["index_id"], album["artist"], album["title"], album["year"], album["decade"]))
+                query3 = "SELECT 1 FROM liked_list WHERE album_id=? AND artist=? AND title=? AND year=? AND decade=?"
+                result3 = self.execute_query(query3, (album["index_id"], album["artist"], album["title"], album["year"], album["decade"]))
+                
+                if result1 or result2 or result3:
+                    pass
+                else:
+                    insert_query = "INSERT INTO remaining_list VALUES (?,?,?,?,?)"
+                    self.execute_query(insert_query, (album["index_id"], album["artist"], album["title"], album["year"], album["decade"]))
+                    self.connect().commit()
+
 class User:
-    def __init__(self, username, liste_albums):
+    def __init__(self, username):
         self.username = username
         self.db_manager = DatabaseManager(fr'C:\Users\chris\Desktop\monPyhon\mes_projets_python\musinder\V0\{username}_albums.db')
 
         self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS remaining_list (album_id text, artist text, title text, year text, decade integer)''')
         self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS liked_list (album_id text, artist text, title text, year text, decade integer)''')
         self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS unliked_list (album_id text, artist text, title text, year text, decade integer)''')
-
-        for album in liste_albums:
-            self.add_album(album["index_id"], album["artist"], album["title"], album["year"], album["decade"])
-    
         self.db_manager.connect().commit()
 
-    def add_album(self, album_id, artist, title, year, decade):        
-        query1 = "SELECT 1 FROM remaining_list WHERE album_id=? AND artist=? AND title=? AND year=? AND decade=?"
-        result1 = self.db_manager.execute_query(query1, (album_id, artist, title, year, decade))
-        query2 = "SELECT 1 FROM liked_list WHERE album_id=? AND artist=? AND title=? AND year=? AND decade=?"
-        result2 = self.db_manager.execute_query(query2, (album_id, artist, title, year, decade))
-        query3 = "SELECT 1 FROM liked_list WHERE album_id=? AND artist=? AND title=? AND year=? AND decade=?"
-        result3 = self.db_manager.execute_query(query3, (album_id, artist, title, year, decade))
-        
-        if result1 or result2 or result3:
-            pass
-        else:
-            insert_query = "INSERT INTO remaining_list VALUES (?,?,?,?,?)"
-            self.db_manager.execute_query(insert_query, (album_id, artist, title, year, decade))
-            self.db_manager.connect().commit()
+        self.db_manager.add_albums_to_db()
+        self.introduction()
+        decade = self.decade_choice()
+        self.add_to_liked_or_unliked(decade)
+
+    def introduction(self):
+        nbr_albums = self.db_manager.get_albums()[1]
+        print("""
+                    #########################################
+                    #                                       #
+                    #         Bienvenue dans MUSINDER       #
+                    #                  par                  # 
+                    #               Petchorine              #
+                    #                                       #
+                    #########################################
+        """)
+        print()
+        print(f"""
+Bonjour {self.username} !
+Tu es sur la version Terminal de l'application Musinder.
+Tu vas pouvoir tagger les albums que tu aimes bien dans la liste des "1001 albums qu'il faut avoir écouté dans sa vie". 
+Cette liste a été publiée à partir de 2006 sous la direction de Robert Dimery.
+Elle contient actuellement {nbr_albums} albums.
+    """)
 
     def decade_choice(self):
         choices = [(1, 1950), (2, 1960), (3, 1970), (4, 1980), (5, 1990), (6, 2000), (7, 2010), (8, 2020)]
@@ -223,31 +246,16 @@ n°   Artiste                        Album                          Annee
     def close(self):
         self.conn.close
 
-for i in range(len(get_albums(URL_WIKI)[0])):
-    BASE = get_albums(URL_WIKI)[0][i]
-    toto = User("toto", BASE)
+class MainMenu:
+    def __init__(self):
+        self.user_name = self.get_user_name()
+        User(self.user_name)
 
-def introduction():
-    nbr_albums = get_albums(URL_WIKI)[1]
-    print("""
-                #########################################
-                #                                       #
-                #         Bienvenue dans MUSINDER       #
-                #                  par                  # 
-                #               Petchorine              #
-                #                                       #
-                #########################################
-    """)
-    print()
-    print(f"""
-Tu es sur la version Terminal de l'application Musinder.
-Tu vas pouvoir tagger les albums que tu aimes bien dans la liste des "1001 albums qu'il faut avoir écouté dans sa vie". 
-Cette liste a été publiée à partir de 2006 sous la direction de Robert Dimery.
-Elle contient actuellement {nbr_albums} albums.
-""")
+    def get_user_name(self):
+        print()
+        print("Quel est ton pseudo ?")
+        user_name = input(">>> ")
+        print(f"Patiente un instant {user_name}, je prépare ta base de données...")
+        return user_name
 
-
-introduction()
-decade = toto.decade_choice()
-toto.add_to_liked_or_unliked(decade)
-
+MainMenu()
