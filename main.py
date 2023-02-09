@@ -88,29 +88,10 @@ class User:
         self.db_manager.connect().commit()
 
         self.db_manager.add_albums_to_db()
-        self.introduction()
+        
+        # TODO : ces 2 appels ne doivent pas être en automatique
         decade = self.decade_choice()
         self.add_to_liked_or_unliked(decade)
-
-    def introduction(self):
-        nbr_albums = self.db_manager.get_albums()[1]
-        print("""
-                    #########################################
-                    #                                       #
-                    #         Bienvenue dans MUSINDER       #
-                    #                  par                  # 
-                    #               Petchorine              #
-                    #                                       #
-                    #########################################
-        """)
-        print()
-        print(f"""
-Bonjour {self.username} !
-Tu es sur la version Terminal de l'application Musinder.
-Tu vas pouvoir tagger les albums que tu aimes bien dans la liste des "1001 albums qu'il faut avoir écouté dans sa vie". 
-Cette liste a été publiée à partir de 2006 sous la direction de Robert Dimery.
-Elle contient actuellement {nbr_albums} albums.
-    """)
 
     def decade_choice(self):
         choices = [(1, 1950), (2, 1960), (3, 1970), (4, 1980), (5, 1990), (6, 2000), (7, 2010), (8, 2020)]
@@ -248,14 +229,61 @@ n°   Artiste                        Album                          Annee
 
 class MainMenu:
     def __init__(self):
-        self.user_name = self.get_user_name()
-        User(self.user_name)
+        self.introduction()
+        self.connexion()
+        self.main_menu()
+         
+        
+
+    def introduction(self):
+        print("""
+                    #########################################
+                    #                                       #
+                    #         Bienvenue dans MUSINDER       #
+                    #                  par                  # 
+                    #               Petchorine              #
+                    #                                       #
+                    #########################################
+        """)
+        print()
+        print(f"""
+Tu es sur la version Terminal de l'application Musinder.
+Tu vas pouvoir tagger les albums que tu aimes bien dans la liste des "1001 albums qu'il faut avoir écouté dans sa vie". 
+Cette liste a été publiée à partir de 2006 sous la direction de Robert Dimery.
+Elle contient actuellement 1084 albums.
+    """)
+
+    def connexion(self):
+        while True:
+            print(" 1. se connecter")
+            print(" 2. créer un nouveau profil")
+
+            connexion_choice = input(">>> ")
+
+            if connexion_choice == "1":
+                print("je me connecte à ta base de données")
+                break
+            elif connexion_choice == "2":
+                user_name = self.get_user_name() 
+                User(user_name)
+                break
+            else:
+                print("Tu dois choisir 1 ou 2.")
+                print()
 
     def get_user_name(self):
         print()
         print("Quel est ton pseudo ?")
         user_name = input(">>> ")
         print(f"Patiente un instant {user_name}, je prépare ta base de données...")
+        print()
         return user_name
+
+    def main_menu(self):
+        print("Que veux-tu faire ?")
+        print(" 1. voir la liste des albums que j'ai aimé")
+        print(" 2. voir la liste des albums que je n'ai pas aimé")
+        print("3. voir la liste par décennie des albums qu'il te reste à tagger")
+        print("4. quitter")
 
 MainMenu()
