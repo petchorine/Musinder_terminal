@@ -87,16 +87,44 @@ class User:
         self.db_manager.execute_query('''CREATE TABLE IF NOT EXISTS unliked_list (album_id text, artist text, title text, year text, decade integer)''')
         self.db_manager.connect().commit()
 
-        self.db_manager.add_albums_to_db()
-        
-        # TODO : ces 2 appels ne doivent pas être en automatique
-        decade = self.decade_choice()
-        self.add_to_liked_or_unliked(decade)
+        self.db_manager.add_albums_to_db()        
+        self.main_menu()
+    
+    def main_menu(self):
+        print()
+        print("Que veux-tu faire ?")
+        print(" 1. voir la liste par décennie des albums que j'ai aimé")
+        print(" 2. voir la liste par décennie des albums que je n'ai pas aimé")
+        print(" 3. voir la liste par décennie des albums qu'il te reste à tagger")
+        print(" 4. quitter")
+    
+        while True:
+            main_menu_choice = int(input(">>> "))
+            if main_menu_choice == 1 or main_menu_choice == 2:
+                self.decade_choice(main_menu_choice)
+                print()
+                print("Tape 'b' pour revenir au menu principal")
+                while True:
+                    back_to_menu = input(">>> ")
+                    if back_to_menu == "b":
+                        self.main_menu()
+                    else:
+                        print("Tu dois taper 'b' pour revenir au menu")                        
+            elif main_menu_choice == 3:
+                decade = self.decade_choice(main_menu_choice)
+                self.add_to_liked_or_unliked(decade)
+                break
+            elif main_menu_choice == 4:
+                quit()
+            else:
+                print("Tu dois choisir entre 1, 2, 3 ou 4")
+                continue
 
-    def decade_choice(self):
+    def decade_choice(self, main_menu_choice=None):
+        list_to_show = ["liked_list", "unliked_list", "remaining_list"]
         choices = [(1, 1950), (2, 1960), (3, 1970), (4, 1980), (5, 1990), (6, 2000), (7, 2010), (8, 2020)]
         print()
-        print("Les albums de quelle décennie souhaites-tu voir ? ('q' pour quitter)" )
+        print("Les albums de quelle décennie souhaites-tu voir ? ('b' pour revenir au menu principal)" )
         print(" 1. 1950")
         print(" 2. 1960")
         print(" 3. 1970")
@@ -110,8 +138,9 @@ class User:
             try:
                 choice_decade_int = int(choice_decade)
                 if choice_decade_int in [1, 2, 3, 4, 5, 6, 7, 8]:
-                    if self.db_manager.execute_query(f'''SELECT * FROM remaining_list WHERE decade = {choices[choice_decade_int - 1][1]}'''):
-                        self.show_remaining_list(choices[choice_decade_int - 1][1])
+                    if self.db_manager.execute_query(f'''SELECT * FROM {list_to_show[main_menu_choice - 1]} WHERE decade = {choices[choice_decade_int - 1][1]}'''):
+                        self.show_remaining_list(choices[choice_decade_int - 1][1], list_to_show[main_menu_choice - 1])
+                        # TODO : est ce que j'ai besoin de ce return ?
                         return choices[choice_decade_int - 1][1]
                     else:
                         print(f"Tous les albums ont été taggés pour les années {choices[choice_decade_int - 1][1]}.") 
@@ -119,7 +148,8 @@ class User:
                         continue
                 elif choice_decade_int in [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]:
                     if self.db_manager.execute_query(f'''SELECT * FROM remaining_list WHERE decade = {choice_decade_int}'''):
-                        self.show_remaining_list(choice_decade_int)
+                        self.show_remaining_list(choice_decade_int, list_to_show[main_menu_choice - 1])
+                        # TODO : est ce que j'ai besoin de ce return ?
                         return choice_decade_int
                     else:
                         print(f"Tous les albums ont été taggés pour les années {choice_decade_int}.") 
@@ -129,20 +159,20 @@ class User:
                     print("Tu dois choisir une des options proposées.")
                     continue
             except:
-                if choice_decade == "q":
-                    quit()
+                if choice_decade == "b":
+                    self.main_menu()
                 else:
                     print("Tu dois choisir une des options proposées.")
                     continue
 
-    def show_remaining_list(self, choice):
+    def show_remaining_list(self, choice, main_menu_choice):
         print()
-        print(f"Voici les albums qu'il te reste à tagger pour les années {choice}.")
+        print(f"Voici la listes des albums pour les années {choice}.")
         print("""
 n°   Artiste                        Album                          Annee
 ==== ============================== ============================== =====
 """)
-        rows = self.db_manager.execute_query(f'''SELECT * FROM remaining_list WHERE decade = {choice}''')
+        rows = self.db_manager.execute_query(f'''SELECT * FROM {main_menu_choice} WHERE decade = {choice}''')
         for row in rows:
             print(row[0].ljust(4), row[1][:30].ljust(30, "."), 
                     row[2][:27].ljust(30, "."), row[3].rjust(4))
@@ -185,7 +215,7 @@ n°   Artiste                        Album                          Annee
                     print("Tu dois taper le n° de l'album.")
                     continue
             elif user_choice == "2":
-                self.show_remaining_list(decade)
+                self.show_remaining_list(decade, value=None)
             elif user_choice == "3":
                 decade = self.decade_choice()
                 self.add_to_liked_or_unliked(decade)
@@ -205,11 +235,11 @@ n°   Artiste                        Album                          Annee
                 self.db_manager.execute_query('''INSERT INTO liked_list VALUES (?,?,?,?,?)''', (album[0][0], album[0][1], album[0][2], album[0][3], album[0][4]))
                 self.db_manager.execute_query('''DELETE FROM remaining_list WHERE album_id=?''', (album_id,))
                 self.db_manager.connect().commit()
-                print(f"L'album a été ajouté à liked_list")                
+                print(f"L'album a été ajouté à la liste des albums que tu aimes.")                
             else:
-                print(f"L'album existe déjà dans liked_list")
+                print(f"L'album existe déjà dans la liste des albums que tu aimes.")
         else:
-            print("L'album n'a pas été trouvé dans la remaining_list")
+            print("L'album n'a pas été trouvé dans la liste des albums qu'il te reste à tagger.")
                
     def unliked_album(self, album_id):
         album = self.db_manager.execute_query(f"SELECT * FROM remaining_list WHERE album_id='{album_id}'")
@@ -218,11 +248,11 @@ n°   Artiste                        Album                          Annee
                 self.db_manager.execute_query('''INSERT INTO unliked_list VALUES (?,?,?,?,?)''', (album[0][0], album[0][1], album[0][2], album[0][3], album[0][4]))
                 self.db_manager.execute_query('''DELETE FROM remaining_list WHERE album_id=?''', (album_id,))
                 self.db_manager.connect().commit()
-                print(f"L'album a été ajouté à unliked_list")                
+                print(f"L'album a été ajouté dans la liste des albums que tu n'aimes pas.")                
             else:
-                print(f"L'album existe déjà dans unliked_list")
+                print(f"L'album existe déjà dans la liste des albums que tu n'aimes pas.")
         else:
-            print("L'album n'a pas été trouvé dans la remaining_list")
+            print("L'album n'a pas été trouvé dans la liste des albums qu'il te reste à tagger.")
 
     def close(self):
         self.conn.close
@@ -230,11 +260,8 @@ n°   Artiste                        Album                          Annee
 class MainMenu:
     def __init__(self):
         self.introduction()
-        self.connexion()
-        self.main_menu()
+        self.connexion_menu()
          
-        
-
     def introduction(self):
         print("""
                     #########################################
@@ -253,37 +280,37 @@ Cette liste a été publiée à partir de 2006 sous la direction de Robert Dimer
 Elle contient actuellement 1084 albums.
     """)
 
-    def connexion(self):
+    def connexion_menu(self):
         while True:
             print(" 1. se connecter")
             print(" 2. créer un nouveau profil")
+            print(" 3. quitter")
 
             connexion_choice = input(">>> ")
 
-            if connexion_choice == "1":
-                print("je me connecte à ta base de données")
+            if connexion_choice == "1":                
+                user_name = self.get_user_name() 
+                print(f"Bonjour {user_name}, je me connecte à ta base de données")
+                User(user_name)
                 break
             elif connexion_choice == "2":
                 user_name = self.get_user_name() 
+                print(f"Patiente un instant {user_name}, je prépare ta base de données...")
                 User(user_name)
                 break
+            elif connexion_choice == "3":
+                quit()
             else:
-                print("Tu dois choisir 1 ou 2.")
+                print("Tu dois choisir 1, 2 ou 3.")
                 print()
+                continue
 
     def get_user_name(self):
         print()
         print("Quel est ton pseudo ?")
         user_name = input(">>> ")
-        print(f"Patiente un instant {user_name}, je prépare ta base de données...")
         print()
         return user_name
 
-    def main_menu(self):
-        print("Que veux-tu faire ?")
-        print(" 1. voir la liste des albums que j'ai aimé")
-        print(" 2. voir la liste des albums que je n'ai pas aimé")
-        print("3. voir la liste par décennie des albums qu'il te reste à tagger")
-        print("4. quitter")
 
 MainMenu()
