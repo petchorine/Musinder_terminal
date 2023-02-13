@@ -1,7 +1,8 @@
 import sqlite3
 import requests
 from bs4 import BeautifulSoup
-import os
+import sys
+import re
 
 class DatabaseManager:
     def __init__(self, path_to_db):
@@ -100,7 +101,8 @@ class User:
     
         while True:
             main_menu_choice = int(input(">>> "))
-            if main_menu_choice == 1 or main_menu_choice == 2:
+            
+            if (main_menu_choice == 1 or main_menu_choice == 2) and isinstance(main_menu_choice, int):
                 self.decade_choice(main_menu_choice)
                 print()
                 print("Tape 'b' pour revenir au menu principal")
@@ -110,15 +112,15 @@ class User:
                         self.main_menu()
                     else:
                         print("Tu dois taper 'b' pour revenir au menu")                        
-            elif main_menu_choice == 3:
+            elif main_menu_choice == 3 and isinstance(main_menu_choice, int):
                 decade = self.decade_choice(main_menu_choice)
                 self.add_to_liked_or_unliked(decade)
                 break
-            elif main_menu_choice == 4:
-                quit()
+            elif main_menu_choice == 4 and isinstance(main_menu_choice, int):
+                sys.exit()
             else:
                 print("Tu dois choisir entre 1, 2, 3 ou 4")
-                continue
+                continue               
 
     def decade_choice(self, main_menu_choice=None):
         list_to_show = ["liked_list", "unliked_list", "remaining_list"]
@@ -290,7 +292,7 @@ Elle contient actuellement 1084 albums.
 
             if connexion_choice == "1":                
                 user_name = self.get_user_name() 
-                print(f"Bonjour {user_name}, je me connecte à ta base de données")
+                print(f"Bonjour {user_name}, je me connecte à ta base de données...")
                 User(user_name)
                 break
             elif connexion_choice == "2":
@@ -299,7 +301,7 @@ Elle contient actuellement 1084 albums.
                 User(user_name)
                 break
             elif connexion_choice == "3":
-                quit()
+                sys.exit()
             else:
                 print("Tu dois choisir 1, 2 ou 3.")
                 print()
