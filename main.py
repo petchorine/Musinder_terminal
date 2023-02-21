@@ -2,7 +2,7 @@ import sqlite3
 import requests
 from bs4 import BeautifulSoup
 import sys
-import re
+
 
 class DatabaseManager:
     def __init__(self, path_to_db):
