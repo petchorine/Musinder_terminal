@@ -122,29 +122,17 @@ class User:
         while True:
             main_menu_choice = input(">>> ")
             
-            if main_menu_choice == "1" or main_menu_choice == "2":
-                self.decade_choice(int(main_menu_choice))
-                print()
-                print("Tape 'b' pour revenir au menu principal")
-                while True:
-                    back_to_menu = input(">>> ")
-                    if back_to_menu == "b":
-                        self.main_menu()
-                    else:
-                        print("Tu dois taper 'b' pour revenir au menu")                        
-            elif main_menu_choice == "3":
-                decade = self.decade_choice(int(main_menu_choice))
-                # self.add_to_liked_or_unliked(decade)
+            if main_menu_choice == "1" or main_menu_choice == "2" or main_menu_choice == "3":
+                self.get_list_to_show(int(main_menu_choice))
                 break
             elif main_menu_choice == "4":
                 sys.exit()
             else:
                 print("Tu dois choisir entre 1, 2, 3 ou 4")
                 continue     
-
-    def decade_choice(self, main_menu_choice=None):
-        list_to_show = ["liked_list", "unliked_list", "remaining_list"]
-        choices = [(1, 1950), (2, 1960), (3, 1970), (4, 1980), (5, 1990), (6, 2000), (7, 2010), (8, 2020)]
+    
+    def get_decade(self):
+        decades_list = [(1, 1950), (2, 1960), (3, 1970), (4, 1980), (5, 1990), (6, 2000), (7, 2010), (8, 2020)]
         print()
         print("Les albums de quelle décennie souhaites-tu voir ? ('b' pour revenir au menu principal)" )
         print(" 1. 1950")
@@ -155,37 +143,66 @@ class User:
         print(" 6. 2000")
         print(" 7. 2010")
         print(" 8. 2020")
+
         while True:
-            choice_decade = input(">>> ")      
-            try:
-                choice_decade_int = int(choice_decade)
-                if choice_decade_int in [1, 2, 3, 4, 5, 6, 7, 8]:
-                    if self.db_manager.execute_query(f'''SELECT * FROM albums WHERE decade = {choices[choice_decade_int - 1][1]}'''):
-                        print("coucou 1 2 3")
-                        # self.show_remaining_list(choices[choice_decade_int - 1][1], list_to_show[main_menu_choice - 1])
-                    else:
-                        print(f"Tous les albums ont été taggés pour les années {choices[choice_decade_int - 1][1]}.") 
-                        print()
-                        continue
-                elif choice_decade_int in [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]:
-                    if self.db_manager.execute_query(f'''SELECT * FROM remaining_list WHERE decade = {choice_decade_int}'''):
-                        print("coucou 19..")
-                        # self.show_remaining_list(choice_decade_int, list_to_show[main_menu_choice - 1])
-                    else:
-                        print(f"Tous les albums ont été taggés pour les années {choice_decade_int}.") 
-                        print()
-                        continue
-                else:
-                    print("Tu dois choisir une des options proposées.")
-                    continue
-            except:
-                if choice_decade == "b":
-                    self.main_menu()
-                else:
-                    print("Tu dois choisir une des options proposées.")
-                    continue
+            choice_decade = input(">>> ")
+            
+            if choice_decade in ["1", "2", "3", "4", "5", "6", "7", "8"]:
+                choice_decade = decades_list[(int(choice_decade) - 1)][1]
+                break
+            elif choice_decade in ["1950", "1960", "1970", "1980", "1990", "2000", "2010", "2020"]:
+                choice_decade = int(choice_decade)
+                break
+            elif choice_decade == "b":
+                self.main_menu()
+            else:
+                print("Ton choix n'est pas dans la liste.")
+                continue
+    
+        return choice_decade
 
+    def get_list_to_show(self, main_menu_choice):
+        decade = self.get_decade()
+        user = self.db_manager.execute_query(f'''select user_id from users where username = "{self.username}";''')[0][0]
+        if main_menu_choice == 1:
+            rows = self.db_manager.execute_query(f'''  
+                select a.album_id, a.artist, a.title, a.year
+                from albums_rating as r, users as u, albums as a
+                WHERE decade = {decade}
+                and r.user_id = {user}
+                and r.rating = "liked"
+                and r.user_id = u.user_id
+                and r.album_id = a.album_id;''')
+        elif main_menu_choice == 2:
+            rows = self.db_manager.execute_query(f'''  
+                select a.album_id, a.artist, a.title, a.year
+                from albums_rating as r, users as u, albums as a
+                WHERE decade = {decade}
+                and r.user_id = {user}
+                and r.rating = "unliked"
+                and r.user_id = u.user_id
+                and r.album_id = a.album_id;''')
+        else:
+            rows = self.db_manager.execute_query(f'''
+                SELECT a.album_id, a.artist, a.title, a.year
+                FROM albums as a
+                WHERE decade = {decade}  
+                AND a.album_id NOT IN (
+                    SELECT album_id FROM albums_rating
+                    WHERE user_id = (SELECT user_id FROM users WHERE username = "{self.username}"));''')
+        self.show_list(decade, rows)    
 
+    def show_list(self, decade, rows):
+            print()
+            print(f"Voici la listes des albums pour les années {decade}.")
+            print("""
+n°   Artiste                        Album                          Annee
+==== ============================== ============================== =====
+""")
+
+            for row in rows:
+                print(str(row[0]).ljust(4), row[1][:30].ljust(30, "."), 
+                        row[2][:27].ljust(30, "."), row[3].rjust(4))
 
 
 
