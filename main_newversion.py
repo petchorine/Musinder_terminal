@@ -102,7 +102,7 @@ class User:
             self.db_manager.execute_query("INSERT INTO users (username) VALUES (?)", (self.username,))
             self.db_manager.connect().commit()
 
-    def connect_db_user(self):
+    def connect_user_to_db(self):
         query = "SELECT 1 FROM users WHERE username=?"
         result = self.db_manager.execute_query(query, (self.username,))
         
@@ -122,8 +122,19 @@ class User:
         while True:
             main_menu_choice = input(">>> ")
             
-            if main_menu_choice == "1" or main_menu_choice == "2" or main_menu_choice == "3":
+            if main_menu_choice == "1" or main_menu_choice == "2":
                 self.get_list_to_show(int(main_menu_choice))
+                print()
+                print("Tape 'b' pour revenir au menu principal")
+                while True:
+                    back_to_menu = input(">>> ")
+                    if back_to_menu == "b":
+                        self.main_menu()
+                    else:
+                        print("Tu dois taper 'b' pour revenir au menu")
+            elif main_menu_choice == "3":
+                decade = self.get_list_to_show(int(main_menu_choice))
+                self.menu_before_tagging(decade)
                 break
             elif main_menu_choice == "4":
                 sys.exit()
@@ -190,7 +201,8 @@ class User:
                 AND a.album_id NOT IN (
                     SELECT album_id FROM albums_rating
                     WHERE user_id = (SELECT user_id FROM users WHERE username = "{self.username}"));''')
-        self.show_list(decade, rows)    
+        self.show_list(decade, rows)
+        return decade    
 
     def show_list(self, decade, rows):
             print()
@@ -203,6 +215,79 @@ n°   Artiste                        Album                          Annee
             for row in rows:
                 print(str(row[0]).ljust(4), row[1][:30].ljust(30, "."), 
                         row[2][:27].ljust(30, "."), row[3].rjust(4))
+
+    def menu_before_tagging(self, decade):
+        while self.db_manager.execute_query(f'''SELECT 1
+                                                FROM albums as a
+                                                WHERE decade = {decade} 
+                                                AND a.album_id NOT IN (
+                                                    SELECT album_id FROM albums_rating
+                                                    WHERE user_id = (SELECT user_id FROM users WHERE username = '{self.username}')
+                                                );'''):
+            print()
+            print("Que souhaites-tu faire ?")
+            print(" 1. tagger un nouvel album")
+            print(f" 2. afficher à nouveau la liste des albums des années {decade}")
+            print(" 3. revenir au menu et changer de décennie")
+            user_choice = input(">>> ")
+
+            if user_choice == "1":
+                self.add_to_liked_or_unliked(decade)
+            elif user_choice == "2":
+                rows = self.db_manager.execute_query(f'''
+                SELECT a.album_id, a.artist, a.title, a.year
+                FROM albums as a
+                WHERE decade = {decade}  
+                AND a.album_id NOT IN (
+                    SELECT album_id FROM albums_rating
+                    WHERE user_id = (SELECT user_id FROM users WHERE username = "{self.username}"));''')
+                self.show_list(decade, rows)
+            elif user_choice == "3":
+                self.main_menu()
+            else:
+                print("Tu dois choisir entre 1, 2 ou 3.")
+                continue        
+        
+        # TODO : ajouter sortie quand le while est False : tous les albums de cette décennie ont été taggés
+
+    def add_to_liked_or_unliked(self, decade):
+        # TODO : comment empecher de choisir un album qui est déjà taggé
+        
+        while True:
+            print()
+            print("Tape le n° de l'album :")
+            album_choice = input(">>> ")
+            if album_choice.isdecimal():
+                album = self.db_manager.execute_query(f'''SELECT a.title, a.artist 
+                                                        FROM albums as a
+                                                        WHERE decade = {decade}
+                                                        AND a.album_id = {album_choice}''')
+                if album:
+                    print()
+                    print(f"As-tu aimé l'album '{album[0][0]}' de {album[0][1]} ?")
+                    print(" 1. oui")
+                    print(" 2. non")
+                    user_choice = input(">>> ")
+
+                    if user_choice == "1":
+                        print("aimé")
+                        self.db_manager.execute_query(f'''INSERT INTO albums_rating (album_id, user_id, rating)
+                        VALUES ({album_choice}, (SELECT user_id FROM users WHERE username = '{self.username}'), 'liked');''')
+                        continue
+                    elif user_choice == "2":
+                        print("pas aimé")
+                        self.db_manager.execute_query(f'''INSERT INTO albums_rating (album_id, user_id, rating)
+                        VALUES ({album_choice}, (SELECT user_id FROM users WHERE username = '{self.username}'), 'unliked');''')
+                        continue
+                    else:
+                        print("Tu dois choisir 1 ou 2.")
+                        self.menu_before_tagging()
+                else:
+                    print("Cet album n'est pas dans la liste.")
+                    continue
+            else:
+                print("Tu dois taper le n° de l'album.")
+                continue
 
 
 
@@ -239,7 +324,7 @@ Elle contient actuellement 1084 albums.
 
             if connexion_choice == "1":                
                 username = self.get_username() 
-                User(username).connect_db_user()
+                User(username).connect_user_to_db()
                 break
             elif connexion_choice == "2":
                 username = self.get_username() 
