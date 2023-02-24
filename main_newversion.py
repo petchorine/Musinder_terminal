@@ -184,6 +184,10 @@ class User:
                 and r.rating = "liked"
                 and r.user_id = u.user_id
                 and r.album_id = a.album_id;''')
+            if rows:
+                self.show_list(decade, rows)
+            else: 
+                print("Tu n'as encore taggés aucun album dans ta liste \"j'aime\"")
         elif main_menu_choice == 2:
             rows = self.db_manager.execute_query(f'''  
                 select a.album_id, a.artist, a.title, a.year
@@ -193,6 +197,10 @@ class User:
                 and r.rating = "unliked"
                 and r.user_id = u.user_id
                 and r.album_id = a.album_id;''')
+            if rows:
+                self.show_list(decade, rows)
+            else: 
+                print("Tu n'as encore taggés aucun album dans ta liste \"je n'aime pas\"")
         else:
             rows = self.db_manager.execute_query(f'''
                 SELECT a.album_id, a.artist, a.title, a.year
@@ -201,7 +209,12 @@ class User:
                 AND a.album_id NOT IN (
                     SELECT album_id FROM albums_rating
                     WHERE user_id = (SELECT user_id FROM users WHERE username = "{self.username}"));''')
-        self.show_list(decade, rows)
+            if rows:
+                self.show_list(decade, rows)
+            else:
+                print("Tous les albums de cette décennie ont été taggés !")
+                self.main_menu()
+
         return decade    
 
     def show_list(self, decade, rows):
@@ -248,12 +261,10 @@ n°   Artiste                        Album                          Annee
                 print("Tu dois choisir entre 1, 2 ou 3.")
                 continue        
         
-        # TODO : ajouter sortie quand le while est False : tous les albums de cette décennie ont été taggés
-
-    def add_to_liked_or_unliked(self, decade):
-        # TODO : comment empecher de choisir un album qui est déjà taggé
-        
-        while True:
+    def add_to_liked_or_unliked(self, decade):       
+        while self.db_manager.execute_query(f'''SELECT 1
+                                                FROM albums as a
+                                                WHERE decade = {decade};'''):
             print()
             print("Tape le n° de l'album :")
             album_choice = input(">>> ")
@@ -261,7 +272,10 @@ n°   Artiste                        Album                          Annee
                 album = self.db_manager.execute_query(f'''SELECT a.title, a.artist 
                                                         FROM albums as a
                                                         WHERE decade = {decade}
-                                                        AND a.album_id = {album_choice}''')
+                                                        AND a.album_id = {album_choice}
+                                                        AND a.album_id NOT IN (
+                                                            SELECT album_id FROM albums_rating
+                                                            WHERE user_id = (SELECT user_id FROM users WHERE username = "{self.username}"));''')
                 if album:
                     print()
                     print(f"As-tu aimé l'album '{album[0][0]}' de {album[0][1]} ?")
@@ -270,26 +284,23 @@ n°   Artiste                        Album                          Annee
                     user_choice = input(">>> ")
 
                     if user_choice == "1":
-                        print("aimé")
                         self.db_manager.execute_query(f'''INSERT INTO albums_rating (album_id, user_id, rating)
                         VALUES ({album_choice}, (SELECT user_id FROM users WHERE username = '{self.username}'), 'liked');''')
-                        continue
+                        self.menu_before_tagging(decade)
                     elif user_choice == "2":
-                        print("pas aimé")
                         self.db_manager.execute_query(f'''INSERT INTO albums_rating (album_id, user_id, rating)
                         VALUES ({album_choice}, (SELECT user_id FROM users WHERE username = '{self.username}'), 'unliked');''')
-                        continue
+                        self.menu_before_tagging(decade)
                     else:
                         print("Tu dois choisir 1 ou 2.")
-                        self.menu_before_tagging()
+                        continue
                 else:
                     print("Cet album n'est pas dans la liste.")
                     continue
             else:
                 print("Tu dois taper le n° de l'album.")
                 continue
-
-
+                
 
 class MainMenu:
     def __init__(self):
