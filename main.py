@@ -79,7 +79,7 @@ class AlbumDB:
                 self.db_manager.execute_query(insert_query, (album["numero_album"], album["artist"], album["title"], album["year"], album["decade"]))
                 self.db_manager.connect().commit()
 
-if not os.path.exists(fr'C:\Users\chris\Desktop\monPyhon\mes_projets_python\musinder\V0\musinder.db'):
+if not os.path.exists(fr'/home/petchorine/Desktop/monPyhon/mes_projets_python/musinder/V0/musinder.db'):
     AlbumDB()
 
 class User:
@@ -145,7 +145,54 @@ class User:
                 continue     
     
     def show_stats(self):
-        print("et maintenant les stats...('b' pour revenir au menu)")
+        print()
+        user = self.db_manager.execute_query(f'''select user_id from users where username = "{self.username}";''')[0][0]
+        rows = self.db_manager.execute_query(f'''  
+            select count(a.album_id)
+            from albums as a;''')
+        
+        print(f"Il y a en tout {rows[0][0]} albums à tagger.")
+        print()
+        print("""      
+      nb albums  notés      à noter    aimés      pas aimés   
+===== ========== ========== ========== ========== ========== 
+""")
+
+        for i in [1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020]:
+            number_albums_per_decade = self.db_manager.execute_query(f'''  
+                select count(a.album_id)
+                from albums as a
+                where a.decade = "{i}";''')
+
+            number_albums_liked_by_user = self.db_manager.execute_query(f'''  
+                select count(a.album_id)
+                from albums_rating as r, users as u, albums as a
+                where a.decade = "{i}"
+                and r.user_id = {user}
+                and r.rating = "liked"
+                and r.user_id = u.user_id
+                and r.album_id = a.album_id;''')
+
+            number_albums_unliked_by_user = self.db_manager.execute_query(f'''  
+                select count(a.album_id)
+                from albums_rating as r, users as u, albums as a
+                where a.decade = "{i}"
+                and r.user_id = {user}
+                and r.rating = "unliked"
+                and r.user_id = u.user_id
+                and r.album_id = a.album_id;''')              
+
+            tagged = number_albums_liked_by_user[0][0] + number_albums_unliked_by_user[0][0]
+            not_tagged = number_albums_per_decade[0][0] - tagged
+
+
+            print(str(i).ljust(5), str(number_albums_per_decade[0][0]).rjust(10, "."), 
+                  str(tagged).rjust(10, "."), str(not_tagged).rjust(10, "."), str(number_albums_liked_by_user[0][0]).rjust(10, "."),
+                  str(number_albums_unliked_by_user[0][0]).rjust(10, "."))
+            # print(f"{i} : {number_albums_per_decade[0][0]} / {tagged} / {not_tagged} / {number_albums_liked_by_user[0][0]} / {number_albums_unliked_by_user[0][0]}")
+
+        print("('b' pour revenir au menu)")
+
 
         while True:
             back_to_menu = input(">>> ")
@@ -190,7 +237,7 @@ class User:
             rows = self.db_manager.execute_query(f'''  
                 select a.album_id, a.artist, a.title, a.year
                 from albums_rating as r, users as u, albums as a
-                WHERE decade = {decade}
+                where decade = {decade}
                 and r.user_id = {user}
                 and r.rating = "liked"
                 and r.user_id = u.user_id
